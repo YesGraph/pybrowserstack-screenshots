@@ -8,7 +8,7 @@ import sys
 import time
 import re
 import getopt
-import ConfigParser
+import configparser
 
 from PIL import Image
 import requests
@@ -21,7 +21,7 @@ try:
 except ImportError:
     import json
 
-config = ConfigParser.ConfigParser()
+config = configparser.ConfigParser()
 config.read('./main_config.properties')
 
 MAX_RETRIES = int(config.get('BROWSERSTACK', 'max_retries'))
@@ -47,13 +47,13 @@ def _build_filepath_for_phantomcss(filepath):
             ext = os.path.splitext(filepath)[1]
             diff_filepath = ''.join((new_root, ext))
             if os.path.exists(diff_filepath):
-                print 'removing stale diff: {0}'.format(diff_filepath)
+                print('removing stale diff: {0}'.format(diff_filepath))
                 os.remove(diff_filepath)
             return diff_filepath
         else:
             return filepath
-    except OSError, e:
-        print e
+    except OSError as e:
+        print(e)
 
 
 def _build_filename_from_browserstack_json(j):
@@ -65,13 +65,13 @@ def _build_filename_from_browserstack_json(j):
                   j['browser'], j['browser_version'], '.jpg']
         filename = '_'.join(item.replace(" ", "_") for item in detail if item)
     else:
-        print 'screenshot timed out, ignoring this result'
+        print('screenshot timed out, ignoring this result')
     return filename
 
 
 def _long_image_slice(in_filepath, out_filepath, slice_size):
     """ Slice an image into parts slice_size tall. """
-    print 'slicing image: {0}'.format(in_filepath)
+    print('slicing image: {0}'.format(in_filepath))
     img = Image.open(in_filepath)
     width, height = img.size
     upper = 0
@@ -99,15 +99,15 @@ def _read_json(path):
     try:
         with open(path) as f:
             return json.load(f)
-    except (EOFError, IOError), e:
-        print e
+    except (EOFError, IOError) as e:
+        print(e)
         return {}
 
 
 def _mkdir(path):
     try:
         os.makedirs(path)
-    except OSError, e:
+    except OSError as e:
         if e.errno != 17:
             raise
 
@@ -120,15 +120,15 @@ def _download_file(uri, filename):
                 if not block:
                     break
                 handle.write(block)
-    except IOError, e:
-        print e
+    except IOError as e:
+        print(e)
 
 
 def _purge(dir, pattern, reason=''):
     """ delete files in dir that match pattern """
     for f in os.listdir(dir):
         if re.search(pattern, f):
-            print "Purging file {0}. {1}".format(f, reason)
+            print("Purging file {0}. {1}".format(f, reason))
             os.remove(os.path.join(dir, f))
 
 
@@ -159,7 +159,7 @@ def retry(tries, delay=3, backoff=2):
                 mdelay *= backoff
 
                 rv = f(*args, **kwargs)  # Try again
-            print str(tries) + " attempts. Abandoning."
+            print(str(tries) + " attempts. Abandoning.")
             return False  # Ran out of tries
 
         return f_retry
@@ -190,13 +190,13 @@ def get_screenshots(s, job_id, result_dir):
                     # slice the image. slicing on css selector could be better..
                     _long_image_slice(base_image, base_image, 300)
                     os.remove(base_image)
-            print 'Done saving.'
+            print('Done saving.')
             return True
-        except OSError, e:
-            print e
+        except OSError as e:
+            print(e)
             return False
     else:
-        print "Screenshots job incomplete. Waiting before retry.."
+        print("Screenshots job incomplete. Waiting before retry..")
         return False
 
 
@@ -205,7 +205,7 @@ class ScreenshotIncompleteError(Exception):
 
 def main(argv):
     def usage():
-        print 'Usage:\n-a, --auth <username:password>\n-c, --config <config_file>\n-p, --phantomcss'
+        print('Usage:\n-a, --auth <username:password>\n-c, --config <config_file>\n-p, --phantomcss')
 
     try:
         opts, args = getopt.getopt(argv, "a:c:p", ["auth=", "config=", "phantomcss"])
@@ -232,17 +232,17 @@ def main(argv):
         auth = (api_user, api_token)
 
     config = _read_json(config_file) if config_file else None
-    print 'using config {0}'.format(config_file)
-    # get config filename, after removing .json - create new result directory for this config 
+    print('using config {0}'.format(config_file))
+    # get config filename, after removing .json - create new result directory for this config
     path, filename=os.path.split(config_file)
     result_dir=filename.split(".")[0]
     s = browserstack_screenshots.Screenshots(auth=auth, config=config)
     generate_resp_json = s.generate_screenshots()
     job_id = generate_resp_json['job_id']
-    print "BrowserStack url http://www.browserstack.com/screenshots/{0}".format(job_id)
+    print("BrowserStack url http://www.browserstack.com/screenshots/{0}".format(job_id))
     if not retry_get_screenshots(s, job_id, result_dir):
-        print """ Failed. The job was not complete at Browserstack after x
-              attempts. You may need to increase the number of retry attempts """
+        print(""" Failed. The job was not complete at Browserstack after x
+              attempts. You may need to increase the number of retry attempts """)
 
 
 if __name__ == "__main__":
